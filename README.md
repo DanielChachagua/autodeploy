@@ -65,6 +65,10 @@ routes:
     client_max_body_size: 50M
     cors: true # Inyecta la cabecera OPTIONS y políticas CORS básicas
 
+  # También puedes mapear directamente a un puerto local sin usar Docker Compose
+  - path: /static/
+    port: 8080
+
   # Redirige /dozzle/ con Basic Auth hacia el contenedor 'dozzle'
   - path: /dozzle/
     service: dozzle

@@ -219,12 +219,14 @@ func (s *deployService) Deploy(configPath, composePath, envPath string, opts Dep
 	}
 	s.logger.Success("Variables de entorno cargadas.")
 
-	// 3. Cargar docker-compose.yml
-	compose, err := s.repo.LoadCompose(composePath)
-	if err != nil {
-		return fmt.Errorf("error al cargar docker-compose.yml: %w", err)
+	// 3. Cargar docker-compose.yml (Opcional, solo requerido si se usa el campo 'service' en alguna ruta)
+	var compose *DockerCompose
+	if composeFile, err := s.repo.LoadCompose(composePath); err != nil {
+		s.logger.Warn("No se pudo cargar docker-compose.yml: %v. (Solo se requerirá si utilizas el campo 'service' en tus rutas).", err)
+	} else {
+		compose = composeFile
+		s.logger.Success("Archivo docker-compose.yml cargado correctamente.")
 	}
-	s.logger.Success("Archivo docker-compose.yml cargado correctamente.")
 
 	// 4. Instalar dependencias si faltan
 	if s.shouldRunStep("dependencies", opts) {
@@ -308,7 +310,17 @@ func (s *deployService) configureNginxRoutes(config *AutoDeployConfig, compose *
 		var proxyPassTarget string
 		if route.ProxyPass != "" {
 			proxyPassTarget = route.ProxyPass
+		} else if route.Port != 0 {
+			// Usar puerto explícito en autodeploy.yaml
+			proxyPassTarget = fmt.Sprintf("http://localhost:%d", route.Port)
+			if path != "/" && strings.HasSuffix(path, "/") {
+				proxyPassTarget = proxyPassTarget + path
+			}
+			s.logger.Info("Puerto explícito %d asignado a la ruta %q.", route.Port, path)
 		} else if route.Service != "" {
+			if compose == nil {
+				return fmt.Errorf("la ruta %q requiere el servicio %q, pero no se pudo cargar docker-compose.yml (verifica que el archivo exista)", route.Path, route.Service)
+			}
 			port, err := s.repo.ResolvePort(route.Service, compose, envMap)
 			if err != nil {
 				return fmt.Errorf("no se pudo resolver el puerto para el servicio %q: %w", route.Service, err)
@@ -322,7 +334,7 @@ func (s *deployService) configureNginxRoutes(config *AutoDeployConfig, compose *
 				proxyPassTarget = proxyPassTarget + path
 			}
 		} else {
-			return fmt.Errorf("la ruta %q debe definir 'proxy_pass' o 'service'", route.Path)
+			return fmt.Errorf("la ruta %q debe definir 'proxy_pass', 'port' o 'service'", route.Path)
 		}
 
 		sb.WriteString(fmt.Sprintf("                proxy_pass %s;\n", proxyPassTarget))

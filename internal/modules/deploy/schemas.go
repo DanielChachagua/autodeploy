@@ -4,6 +4,7 @@ package deploy
 type Route struct {
 	Path               string `yaml:"path"`
 	Service            string `yaml:"service,omitempty"`
+	Port               int    `yaml:"port,omitempty"`
 	ProxyPass          string `yaml:"proxy_pass,omitempty"`
 	ClientMaxBodySize  string `yaml:"client_max_body_size,omitempty"`
 	AuthBasic          string `yaml:"auth_basic,omitempty"`
