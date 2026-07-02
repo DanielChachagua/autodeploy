@@ -1,7 +1,7 @@
 # Makefile para AutoDeploy CLI
 
 BINARY_NAME=autodeploy
-INSTALL_DIR=/usr/local/bin
+INSTALL_DIR=/usr/bin
 DIST_DIR=dist
 
 .PHONY: all build install uninstall clean test release

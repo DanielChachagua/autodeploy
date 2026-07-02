@@ -13,7 +13,7 @@ NC='\033[0m' # Sin color
 # Configuración del repositorio (Cambia esto por tu repo real cuando lo publiques)
 GITHUB_REPO="DanielChachagua/autodeploy"
 BINARY_NAME="autodeploy"
-DEST_DIR="/usr/local/bin"
+DEST_DIR="/usr/bin"
 
 echo -e "${BLUE}===============================================${NC}"
 echo -e "${BLUE}     Instalador de AutoDeploy CLI (Linux)      ${NC}"
@@ -88,7 +88,7 @@ fi
 
 echo -e "${GREEN}Descarga completada con éxito.${NC}"
 
-# 5. Instalar en /usr/local/bin
+# 5. Instalar en /usr/bin
 echo -e "${YELLOW}Instalando el ejecutable en ${DEST_DIR}/${BINARY_NAME}...${NC}"
 
 # Verificar si se necesitan privilegios de administrador

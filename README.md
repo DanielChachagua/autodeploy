@@ -126,7 +126,7 @@ Si deseas modificar el código o compilarlo tú mismo, necesitas tener **Go 1.25
 # Compilar el binario local
 make build
 
-# Instalar de forma global en /usr/local/bin (requiere sudo)
+# Instalar de forma global en /usr/bin (requiere sudo)
 sudo make install
 
 # Limpiar los binarios generados
