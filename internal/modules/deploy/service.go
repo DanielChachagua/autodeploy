@@ -202,7 +202,7 @@ func (s *deployService) checkAndInstallCertbot() error {
 	return nil
 }
 
-func (s *deployService) Deploy(configPath, composePath, envPath string) error {
+func (s *deployService) Deploy(configPath, composePath, envPath string, opts DeployOptions) error {
 	s.logger.Step("Iniciando proceso de autodespliegue...")
 
 	// 1. Cargar autodeploy.yaml
@@ -227,18 +227,30 @@ func (s *deployService) Deploy(configPath, composePath, envPath string) error {
 	s.logger.Success("Archivo docker-compose.yml cargado correctamente.")
 
 	// 4. Instalar dependencias si faltan
-	if err := s.CheckAndInstallDependencies(); err != nil {
-		return err
+	if s.shouldRunStep("dependencies", opts) {
+		if err := s.CheckAndInstallDependencies(); err != nil {
+			return err
+		}
+	} else {
+		s.logger.Info("Saltando verificación/instalación de dependencias según filtros.")
 	}
 
 	// 5. Configurar Nginx
-	if err := s.configureNginxRoutes(config, compose, envMap); err != nil {
-		return fmt.Errorf("error al configurar las rutas de Nginx: %w", err)
+	if s.shouldRunStep("nginx", opts) {
+		if err := s.configureNginxRoutes(config, compose, envMap); err != nil {
+			return fmt.Errorf("error al configurar las rutas de Nginx: %w", err)
+		}
+	} else {
+		s.logger.Info("Saltando configuración de Nginx según filtros.")
 	}
 
 	// 6. Configurar SSL con Certbot
-	if err := s.configureSSL(config); err != nil {
-		return fmt.Errorf("error al configurar certificados SSL: %w", err)
+	if s.shouldRunStep("ssl", opts) {
+		if err := s.configureSSL(config); err != nil {
+			return fmt.Errorf("error al configurar certificados SSL: %w", err)
+		}
+	} else {
+		s.logger.Info("Saltando configuración de Certbot (SSL) según filtros.")
 	}
 
 	s.logger.Success("¡Despliegue finalizado con éxito!")
@@ -414,4 +426,97 @@ func (s *deployService) configureSSL(config *AutoDeployConfig) error {
 
 	s.logger.Success("Certificados SSL configurados y validados.")
 	return nil
+}
+
+// Destroy elimina los cambios aplicados (configuración de Nginx y certificados SSL).
+func (s *deployService) Destroy(configPath string, opts DeployOptions) error {
+	s.logger.Step("Iniciando reversión de cambios aplicados...")
+
+	// 1. Cargar autodeploy.yaml
+	config, err := s.repo.LoadConfig(configPath)
+	if err != nil {
+		return fmt.Errorf("error al cargar autodeploy.yaml: %w", err)
+	}
+
+	if len(config.Domains) == 0 {
+		return fmt.Errorf("debes especificar al menos un dominio en la configuración para revertir los cambios")
+	}
+
+	primaryDomain := config.Domains[0]
+
+	// 2. Revertir SSL con Certbot
+	if s.shouldRunStep("ssl", opts) {
+		s.logger.Step("Eliminando certificados SSL con Certbot para %s...", primaryDomain)
+		args := []string{"certbot", "delete", "--non-interactive", "--cert-name", primaryDomain}
+		s.logger.Info("Ejecutando: sudo certbot delete --non-interactive --cert-name %s", primaryDomain)
+		if err := s.run.Run("sudo", args...); err != nil {
+			s.logger.Warn("Advertencia al eliminar certificados: %v", err)
+		} else {
+			s.logger.Success("Certificados SSL eliminados.")
+		}
+	} else {
+		s.logger.Info("Saltando eliminación de certificados SSL según filtros.")
+	}
+
+	// 3. Revertir configuración de Nginx
+	if s.shouldRunStep("nginx", opts) {
+		s.logger.Step("Eliminando archivos de configuración de Nginx para %s...", primaryDomain)
+
+		targetPath := fmt.Sprintf("/etc/nginx/sites-available/%s", primaryDomain)
+		enabledPath := fmt.Sprintf("/etc/nginx/sites-enabled/%s", primaryDomain)
+
+		// Eliminar enlace simbólico en sites-enabled
+		s.logger.Info("Eliminando enlace en %s", enabledPath)
+		if err := s.run.Run("sudo", "rm", "-f", enabledPath); err != nil {
+			s.logger.Warn("No se pudo eliminar el enlace en sites-enabled: %v", err)
+		}
+
+		// Eliminar archivo en sites-available
+		s.logger.Info("Eliminando archivo en %s", targetPath)
+		if err := s.run.Run("sudo", "rm", "-f", targetPath); err != nil {
+			s.logger.Warn("No se pudo eliminar el archivo en sites-available: %v", err)
+		}
+
+		// Validar configuración de Nginx
+		s.logger.Info("Validando configuración de Nginx...")
+		if err := s.run.Run("sudo", "nginx", "-t"); err != nil {
+			s.logger.Warn("La validación de Nginx reportó advertencias: %v", err)
+		}
+
+		// Recargar Nginx
+		s.logger.Info("Recargando Nginx...")
+		if err := s.run.Run("sudo", "systemctl", "reload", "nginx"); err != nil {
+			s.logger.Warn("No se pudo recargar Nginx: %v", err)
+		} else {
+			s.logger.Success("Configuración de Nginx revertida correctamente.")
+		}
+	} else {
+		s.logger.Info("Saltando eliminación de configuración de Nginx según filtros.")
+	}
+
+	s.logger.Success("¡Reversión de cambios finalizada con éxito!")
+	return nil
+}
+
+// shouldRunStep verifica si un paso específico debe ejecutarse basándose en las opciones.
+func (s *deployService) shouldRunStep(step string, opts DeployOptions) bool {
+	if opts.Only != "" {
+		onlySteps := strings.Split(strings.ToLower(opts.Only), ",")
+		for _, o := range onlySteps {
+			if strings.TrimSpace(o) == step {
+				return true
+			}
+		}
+		return false
+	}
+	if opts.Skip != "" {
+		skipSteps := strings.Split(strings.ToLower(opts.Skip), ",")
+		for _, sk := range skipSteps {
+			if strings.TrimSpace(sk) == step {
+				return false
+			}
+		}
+		return true
+	}
+	return true
 }

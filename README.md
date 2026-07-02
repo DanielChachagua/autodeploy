@@ -164,6 +164,29 @@ sudo autodeploy run
 *   `-d, --compose`: Ruta personalizada para `docker-compose.yml` (Por defecto: `docker-compose.yml`).
 *   `-e, --env`: Ruta personalizada para el archivo `.env` (Por defecto: `.env`).
 *   `--dry-run`: Simula la ejecución sin realizar cambios reales en el sistema operativo.
+*   `-o, --only`: Ejecuta solo ciertos pasos, separados por comas (valores: `dependencies`, `nginx`, `ssl`). Ejemplo: `sudo autodeploy run --only nginx`
+*   `-s, --skip`: Omite ciertos pasos, separados por comas (valores: `dependencies`, `nginx`, `ssl`). Ejemplo: `sudo autodeploy run --skip ssl`
+
+---
+
+### 6. Deshacer Cambios (Reversión)
+Si deseas eliminar los cambios aplicados en el servidor (archivos de configuración de Nginx y certificados de Certbot) sin desinstalar Docker, Nginx ni Certbot del sistema operativo, utiliza el comando `destroy`:
+
+```bash
+sudo autodeploy destroy
+```
+
+#### Opciones y Flags del Comando `destroy`:
+*   `-c, --config`: Ruta al archivo `autodeploy.yaml` (Por defecto: `autodeploy.yaml`).
+*   `--dry-run`: Simula la reversión de los comandos sin aplicarlos.
+*   `-o, --only`: Revierte solo ciertos pasos, separados por comas (valores: `nginx`, `ssl`). Ejemplo:
+    ```bash
+    sudo autodeploy destroy --only nginx
+    ```
+*   `-s, --skip`: Omite la reversión de ciertos pasos, separados por comas (valores: `nginx`, `ssl`). Ejemplo:
+    ```bash
+    sudo autodeploy destroy --skip ssl
+    ```
 
 ---
 
