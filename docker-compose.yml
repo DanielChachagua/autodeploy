@@ -1,0 +1,13 @@
+services:
+  web:
+    image: nginx:alpine
+    ports:
+      - "5000:80"
+  api:
+    image: node:alpine
+    ports:
+      - "${API_PORT}:3000"
+  dozzle:
+    image: amir20/dozzle:latest
+    ports:
+      - "8888:8080"
