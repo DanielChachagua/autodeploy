@@ -4,13 +4,13 @@ domains:
 email: tu-email@ejemplo.com
 routes:
   - path: /api/
-    service: api
+    port: 3000
     client_max_body_size: 50M
     cors: true
   - path: /dozzle/
-    service: dozzle
+    port: 8888
     auth_basic: "Acceso Restringido - NOA GESTION"
     auth_basic_user_file: /etc/nginx/.htpasswd_dozzle
   - path: /
-    service: web
+    port: 5000
     websocket: true

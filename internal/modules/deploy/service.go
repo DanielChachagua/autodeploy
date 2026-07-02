@@ -69,8 +69,8 @@ func (s *deployService) checkAndInstallDocker() error {
 		}
 	}
 
-	// Agregar la llave gpg de docker
-	gpgCmd := "curl -fsSL https://download.docker.com/linux/ubuntu/gpg | sudo gpg --dearmor -o /etc/apt/keyrings/docker.gpg"
+	// Agregar la llave gpg de docker (detectando dinámicamente si es Debian o Ubuntu)
+	gpgCmd := `OS_ID=$(. /etc/os-release && echo "$ID"); curl -fsSL https://download.docker.com/linux/${OS_ID}/gpg | sudo gpg --dearmor --yes -o /etc/apt/keyrings/docker.gpg`
 	if s.run.IsDryRun() {
 		s.logger.Info("[SIMULACIÓN] Ejecutando: %s", gpgCmd)
 	} else {
@@ -80,8 +80,8 @@ func (s *deployService) checkAndInstallDocker() error {
 		}
 	}
 
-	// Agregar repositorio de apt
-	sourcesCmd := `echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
+	// Agregar repositorio de apt con soporte para Debian/Ubuntu y fallback para Debian testing/sid
+	sourcesCmd := `OS_ID=$(. /etc/os-release && echo "$ID"); CODENAME=$(. /etc/os-release && echo "$VERSION_CODENAME"); if [ "$OS_ID" = "debian" ] && { [ "$CODENAME" = "forky" ] || [ "$CODENAME" = "trixie" ] || [ "$CODENAME" = "sid" ] || [ -z "$CODENAME" ]; }; then CODENAME="bookworm"; fi; echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.gpg] https://download.docker.com/linux/${OS_ID} ${CODENAME} stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null`
 	if s.run.IsDryRun() {
 		s.logger.Info("[SIMULACIÓN] Ejecutando: %s", sourcesCmd)
 	} else {
