@@ -90,11 +90,16 @@ func (s *deployService) checkAndInstallDocker() error {
 		}
 	}
 
+	targetUser := os.Getenv("SUDO_USER")
+	if targetUser == "" {
+		targetUser = os.Getenv("USER")
+	}
+
 	postSteps := [][]string{
 		{"sudo", "apt-get", "update"},
 		{"sudo", "apt-get", "install", "docker-ce", "docker-ce-cli", "containerd.io", "docker-buildx-plugin", "docker-compose-plugin", "-y"},
 		{"sudo", "groupadd", "docker"},
-		{"sudo", "usermod", "-aG", "docker", os.Getenv("USER")},
+		{"sudo", "usermod", "-aG", "docker", targetUser},
 		{"sudo", "mkdir", "-p", "/etc/systemd/system/docker.service.d/"},
 	}
 
